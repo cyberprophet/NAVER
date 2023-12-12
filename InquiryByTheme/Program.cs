@@ -14,5 +14,6 @@ static class Program
             Resources.WHITE,
             Resources.DARK
         ]));
+        GC.Collect();
     }
 }
