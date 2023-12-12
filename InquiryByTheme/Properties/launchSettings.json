@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "InquiryByTheme": {
+      "commandName": "Project",
+      "commandLineArgs": "accessToken"
+    }
+  }
+}
