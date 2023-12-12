@@ -5,24 +5,21 @@ using ShareInvest;
 
 using (var service = ChromeDriverService.CreateDefaultService())
 {
+    var queue = new Queue<ThemeModel>();
+
     var options = new ChromeOptions
     {
 
     };
-#if DEBUG
+    options.AddArguments("--headless", "--window-size=1920,1080", "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-#else
-    options.AddArgument("--headless");
-#endif
-    options.AddArgument("--window-size=1920,1080");
+    int page = 1, length = 0;
 
     using (var driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(0x40)))
     {
-        int page = 1;
-
         driver.Navigate().GoToUrl($"https://finance.naver.com/sise/theme.naver");
 
-        static IWebElement? getNextPage(ChromeDriver driver, int nextPage)
+        IWebElement? getNextPage(ChromeDriver driver, int nextPage)
         {
             foreach (var element in driver.FindElement(By.XPath("//*[@id=\"contentarea_left\"]/table[2]/tbody/tr")).FindElements(By.TagName("td")))
             {
@@ -36,25 +33,30 @@ using (var service = ChromeDriverService.CreateDefaultService())
             }
             return null;
         }
-        static void getThemeModel(ChromeDriver driver)
+        void getThemeModel(ChromeDriver driver)
         {
             foreach (var tr in driver.FindElement(By.XPath("//*[@id=\"contentarea_left\"]/table[1]")).FindElements(By.TagName("tr")))
             {
-                var model = new ThemeModel();
+                var model = new ThemeModel
+                {
 
+                };
                 foreach (var td in tr.FindElements(By.TagName("td")))
                 {
                     var className = td.GetAttribute("class").Replace("number ", string.Empty).Replace("ls ", string.Empty);
 
-                    if (!"col_type".Equals(className[..^1]))
+                    if ("col_type".Equals(className[..^1]) is false)
                     {
                         continue;
                     }
                     switch (className[^1])
                     {
                         case '1':
+                            var href = td.FindElement(By.TagName("a")).GetAttribute("href");
+
                             model.ThemeName = td.Text.Trim();
-                            model.ThemeCode = td.FindElement(By.TagName("a")).GetAttribute("href").Split('=')[^1];
+                            model.ThemeCode = href.Split('=')[^1];
+                            model.DetailGroupUrl = href;
                             continue;
 
                         case '2':
@@ -105,8 +107,10 @@ using (var service = ChromeDriverService.CreateDefaultService())
                     Console.WriteLine(new
                     {
                         model.ThemeCode,
-                        model.ThemeName
+                        model.ThemeName,
+                        model.DetailGroupUrl
                     });
+                    queue.Enqueue(model);
                 }
             }
         }
@@ -120,6 +124,55 @@ using (var service = ChromeDriverService.CreateDefaultService())
         }
         getThemeModel(driver);
 
-        driver.Quit();
+        while (queue.TryDequeue(out ThemeModel? model))
+        {
+            driver.Navigate().GoToUrl(model.DetailGroupUrl);
+
+            foreach (var tr in driver.FindElement(By.XPath("//*[@id=\"contentarea\"]/div[4]/table/tbody")).FindElements(By.TagName("tr")))
+            {
+                var detail = new ThemeDetail
+                {
+
+                };
+                foreach (var td in tr.FindElements(By.TagName("td")))
+                {
+                    var className = td.GetAttribute("class");
+
+                    if ("number".Equals(className) || "blank".Equals(className.Split('_')[0]) || "division".Equals(className.Split('_')[0]))
+                    {
+                        break;
+                    }
+                    if ("name".Equals(className))
+                    {
+                        var link = td.FindElement(By.TagName("a"));
+
+                        detail.Name = link.Text;
+                        detail.Code = link.GetAttribute("href").Split('=')[^1];
+                        detail.Classification = "*".Equals(td.FindElement(By.TagName("span")).Text) ? "10" : "0";
+
+                        continue;
+                    }
+                    detail.Description = td.FindElement(By.TagName("div")).FindElement(By.TagName("div")).FindElement(By.TagName("p")).GetAttribute("textContent");
+                }
+                if (string.IsNullOrEmpty(detail.Name))
+                {
+                    continue;
+                }
+                Console.WriteLine(new
+                {
+                    detail.Code,
+                    detail.Name,
+                    detail.Classification,
+                    detail.Description,
+                    detail.Description?.Length
+                });
+                if (length < detail.Description?.Length)
+                {
+                    length = detail.Description.Length;
+                }
+            }
+        }
+        driver.Close();
     }
+    Console.WriteLine(length);
 }
