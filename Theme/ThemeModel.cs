@@ -38,4 +38,8 @@ class ThemeModel
     {
         get; set;
     }
+    internal string? DetailGroupUrl
+    {
+        get; set;
+    }
 }
