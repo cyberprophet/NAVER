@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Security.Cryptography.Xml;
 
 namespace ShareInvest;
 
@@ -13,6 +14,11 @@ partial class InquiryByStockTheme
                 timer.Stop();
                 timer.Tick -= TimerTick;
                 timer.Dispose();
+            }
+            if (strip is not null)
+            {
+                strip.ItemClicked -= StripItemClicked;
+                strip.Dispose();
             }
             if (notifyIcon is not null)
             {
@@ -44,12 +50,47 @@ partial class InquiryByStockTheme
         components = new Container();
         resources = new ComponentResourceManager(typeof(InquiryByStockTheme));
         notifyIcon = new NotifyIcon(components);
+        strip = new ContextMenuStrip(components);
+        reference = new ToolStripMenuItem();
+        exit = new ToolStripMenuItem();
         timer = new System.Windows.Forms.Timer(components);
+        strip.SuspendLayout();
         SuspendLayout();
+        // 
+        // strip
+        // 
+        strip.AllowMerge = false;
+        strip.AutoSize = false;
+        strip.DropShadowEnabled = false;
+        strip.Items.AddRange(new ToolStripItem[]
+        {
+            reference,
+            exit
+        });
+        strip.LayoutStyle = ToolStripLayoutStyle.VerticalStackWithOverflow;
+        strip.Name = "strip";
+        strip.RenderMode = ToolStripRenderMode.System;
+        strip.ShowImageMargin = false;
+        strip.ShowItemToolTips = false;
+        strip.Size = new Size(48, 47);
+        strip.ItemClicked += StripItemClicked;
+        // 
+        // reference
+        // 
+        reference.Name = "reference";
+        reference.Size = new Size(73, 22);
+        reference.Text = "연결";
+        // 
+        // exit
+        // 
+        exit.Name = "exit";
+        exit.Size = new Size(73, 22);
+        exit.Text = "종료";
         // 
         // notifyIcon
         // 
         notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
+        notifyIcon.ContextMenuStrip = strip;
         notifyIcon.Icon = Properties.Resources.DARK;
         notifyIcon.Text = "AnTalk";
         notifyIcon.MouseDoubleClick += (_, e) =>
@@ -83,6 +124,7 @@ partial class InquiryByStockTheme
         Text = "동학개미운동";
         FormClosing += JustBeforeFormClosing;
         Resize += SecuritiesResize;
+        strip.ResumeLayout(false);
         ResumeLayout(false);
         //
         // webView
@@ -93,6 +135,9 @@ partial class InquiryByStockTheme
 
         webView.Dock = DockStyle.Fill;
     }
+    ContextMenuStrip strip;
+    ToolStripMenuItem exit;
+    ToolStripMenuItem reference;
     ComponentResourceManager resources;
     NotifyIcon notifyIcon;
     System.Windows.Forms.Timer timer;

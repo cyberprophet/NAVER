@@ -174,6 +174,18 @@ partial class InquiryByStockTheme : Form
         }
         Dispose();
     }
+    void StripItemClicked(object _, ToolStripItemClickedEventArgs e)
+    {
+        if (reference.Name!.Equals(e.ClickedItem?.Name))
+        {
+            _ = BeginInvoke(() => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("http://share.enterprises")
+            {
+                UseShellExecute = true
+            }));
+            return;
+        }
+        Close();
+    }
     string? ThemeCode
     {
         get; set;
