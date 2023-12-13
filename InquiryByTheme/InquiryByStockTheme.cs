@@ -3,37 +3,89 @@ using OpenQA.Selenium.Chrome;
 
 using ShareInvest.Entities;
 using ShareInvest.Properties;
+using ShareInvest.Securities;
+
+using System.Collections.Concurrent;
+using System.Media;
+using System.Net;
 
 namespace ShareInvest;
 
 partial class InquiryByStockTheme : Form
 {
-    internal InquiryByStockTheme(string accessToken, Icon[] icons)
+    internal InquiryByStockTheme(Theme theme, Icon[] icons)
     {
-        this.accessToken = accessToken;
         this.icons = icons;
+        this.theme = theme;
 
         InitializeComponent();
-
-        theme = new Theme();
 
         theme.Send += (_, e) =>
         {
             switch (e.Convey)
             {
                 case StockTheme t:
+                    themes.Enqueue(t);
+
                     notifyIcon.Text = t.ThemeName;
-                    break;
+                    return;
 
                 case StockThemeDetail td:
-                    notifyIcon.Text = td.Description?.Length > 127 ? td.Description[..127] : td.Description;
-                    break;
+
+                    if (!string.IsNullOrEmpty(ThemeCode) && !ThemeCode.Equals(td.ThemeCode) && Transmission != null && themes.TryDequeue(out StockTheme? theme))
+                    {
+                        theme.ThemeDetail = details.Where(p => theme.ThemeCode!.Equals(p.ThemeCode));
+
+                        _ = BeginInvoke(async () =>
+                        {
+                            var response = await Transmission.ExecutePostAsync(theme);
+
+                            if (HttpStatusCode.OK == response.StatusCode && int.TryParse(response.Content, out int operation))
+                            {
+                                Cache.MarketOperation = (MarketOperation)operation;
+
+                                notifyIcon.Text = $"[{Cache.MarketOperation}] {themes.Count:D4}.{theme.ThemeName}";
+                            }
+                        });
+                    }
+                    ThemeCode = td.ThemeCode;
+
+                    details.Add(td);
+                    return;
 
                 case string:
-                    _ = BeginInvoke(Dispose);
+
+                    TimeSpan delay = TimeSpan.FromMilliseconds(0x400 * 3);
+
+                    if (MarketOperation.장종료_시간외종료 == Cache.MarketOperation)
+                    {
+                        var now = DateTime.Now;
+
+                        DateTime targetTime = new(now.Year, now.Month, now.Day + 1, 8, Random.Shared.Next(30, 39), Random.Shared.Next(0, 60));
+
+                        delay = targetTime - now;
+                    }
+                    _ = BeginInvoke(async () =>
+                    {
+                        while (Transmission != null && themes.TryDequeue(out StockTheme? theme))
+                        {
+                            theme.ThemeDetail = details.Where(p => theme.ThemeCode!.Equals(p.ThemeCode));
+
+                            var response = await Transmission.ExecutePostAsync(theme);
+
+                            if (HttpStatusCode.OK == response.StatusCode && int.TryParse(response.Content, out int operation))
+                            {
+                                Cache.MarketOperation = (MarketOperation)operation;
+
+                                notifyIcon.Text = $"[{Cache.MarketOperation}] {themes.Count:D4}.{theme.ThemeName}";
+                            }
+                        }
+                        await Task.Delay(delay);
+
+                        Dispose();
+                    });
                     return;
             }
-
         };
         timer.Start();
     }
@@ -41,8 +93,18 @@ partial class InquiryByStockTheme : Form
     {
         if (FormBorderStyle.Sizable == FormBorderStyle && FormWindowState.Minimized != WindowState)
         {
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
+                while (string.IsNullOrEmpty(webView.AccessToken))
+                {
+                    await Task.Delay(0x400 * 5);
+                }
+                using (var sp = new SoundPlayer(Resources.DING))
+                {
+                    Transmission = new Transmission(webView.Url, webView.AccessToken);
+
+                    sp.PlaySync();
+                }
                 using (var service = ChromeDriverService.CreateDefaultService())
                 {
                     service.HideCommandPromptWindow = true;
@@ -112,11 +174,21 @@ partial class InquiryByStockTheme : Form
         }
         Dispose();
     }
+    string? ThemeCode
+    {
+        get; set;
+    }
+    Transmission? Transmission
+    {
+        get; set;
+    }
     DialogResult IsCancelled
     {
         get => MessageBox.Show(Resources.WARNING.Replace('|', '\n'), Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
     }
     readonly Theme theme;
     readonly Icon[] icons;
-    readonly string accessToken;
+    readonly CoreWebView webView = new();
+    readonly ConcurrentQueue<StockTheme> themes = new();
+    readonly ConcurrentBag<StockThemeDetail> details = [];
 }

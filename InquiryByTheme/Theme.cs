@@ -56,28 +56,28 @@ class Theme
                         continue;
 
                     case '2':
-                        model.RateCompareToPreviousDay = td.Text.Split('%')[0];
+                        model.RateCompareToPreviousDay = td.Text.Split('%')[0].Trim();
                         continue;
 
                     case '3':
-                        model.AverageRateLastThreeDays = td.Text.Split('%')[0];
+                        model.AverageRateLastThreeDays = td.Text.Split('%')[0].Trim();
                         continue;
 
                     case '4':
 
                         if (string.IsNullOrEmpty(model.RisingStockCount))
                         {
-                            model.RisingStockCount = td.Text;
+                            model.RisingStockCount = td.Text.Trim();
 
                             continue;
                         }
                         if (string.IsNullOrEmpty(model.FlatStockCount))
                         {
-                            model.FlatStockCount = td.Text;
+                            model.FlatStockCount = td.Text.Trim();
 
                             continue;
                         }
-                        model.FallingStockCount = td.Text;
+                        model.FallingStockCount = td.Text.Trim();
                         continue;
 
                     case '5':

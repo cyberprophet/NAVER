@@ -5,14 +5,14 @@ namespace ShareInvest;
 static class Program
 {
     [STAThread]
-    static void Main(string[] arg)
+    static void Main()
     {
         ApplicationConfiguration.Initialize();
-        Application.Run(new InquiryByStockTheme(arg[0],
-        [
+        Application.Run(new InquiryByStockTheme(new Theme(), [
             Resources.GREEN,
             Resources.WHITE,
             Resources.DARK
         ]));
+        GC.Collect();
     }
 }
