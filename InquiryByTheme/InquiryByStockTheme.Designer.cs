@@ -42,7 +42,7 @@ partial class InquiryByStockTheme
     void InitializeComponent()
     {
         components = new Container();
-        ComponentResourceManager resources = new ComponentResourceManager(typeof(InquiryByStockTheme));
+        resources = new ComponentResourceManager(typeof(InquiryByStockTheme));
         notifyIcon = new NotifyIcon(components);
         timer = new System.Windows.Forms.Timer(components);
         SuspendLayout();
@@ -52,6 +52,17 @@ partial class InquiryByStockTheme
         notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
         notifyIcon.Icon = Properties.Resources.DARK;
         notifyIcon.Text = "AnTalk";
+        notifyIcon.MouseDoubleClick += (_, e) =>
+        {
+            if (Visible)
+            {
+                Hide();
+            }
+            else
+            {
+                Show();
+            }
+        };
         // 
         // timer
         // 
@@ -63,7 +74,7 @@ partial class InquiryByStockTheme
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.Black;
-        ClientSize = new Size(800, 450);
+        ClientSize = new Size(475, 835);
         DoubleBuffered = true;
         Icon = (Icon)resources.GetObject("$this.Icon");
         Name = "InquiryByStockTheme";
@@ -73,8 +84,15 @@ partial class InquiryByStockTheme
         FormClosing += JustBeforeFormClosing;
         Resize += SecuritiesResize;
         ResumeLayout(false);
-    }
+        //
+        // webView
+        //
+        _ = webView.EnsureCoreWebView2Async();
 
+        Controls.Add(webView);
+
+        webView.Dock = DockStyle.Fill;
+    }
     ComponentResourceManager resources;
     NotifyIcon notifyIcon;
     System.Windows.Forms.Timer timer;
