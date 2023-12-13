@@ -7,7 +7,7 @@
 		<UseWindowsForms>True</UseWindowsForms>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
-		<AssemblyName>ShareInvest.Inquiry.Theme</AssemblyName>
+		<AssemblyName>Naver</AssemblyName>
 		<RootNamespace>ShareInvest</RootNamespace>
 		<ApplicationIcon>naver_green.ico</ApplicationIcon>
 		<Authors>cyberprophet</Authors>
