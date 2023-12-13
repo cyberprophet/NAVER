@@ -1,0 +1,59 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>True</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+		<AssemblyName>ShareInvest.Inquiry.Theme</AssemblyName>
+		<RootNamespace>ShareInvest</RootNamespace>
+		<ApplicationIcon>naver_green.ico</ApplicationIcon>
+		<Authors>cyberprophet</Authors>
+		<Company>ShareInvest Corp.</Company>
+		<Product>AnTalk</Product>
+		<Copyright>Copyright ⓒ 2023, ShareInvest Corp.</Copyright>
+		<PackageProjectUrl>https://github.com/ShareAnTalk/NAVER</PackageProjectUrl>
+		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+		<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+		<Version>8.0.0.1</Version>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Content Include="naver_green.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\open-api-modules\LICENSE.txt">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2210.55" />
+		<PackageReference Include="Selenium.Support" Version="4.16.2" />
+		<PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="120.0.6099.7100" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\SecuritiesModules\Ant.Modules\Ant.Modules.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+
+</Project>
