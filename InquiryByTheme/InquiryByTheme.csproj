@@ -17,7 +17,7 @@
 		<PackageProjectUrl>https://github.com/ShareAnTalk/NAVER</PackageProjectUrl>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 		<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-		<Version>8.0.1.2</Version>
+		<Version>8.0.1.3</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
