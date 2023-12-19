@@ -61,7 +61,7 @@ partial class InquiryByStockTheme : Form
                     {
                         var now = DateTime.Now;
 
-                        DateTime targetTime = new(now.Year, now.Month, now.Hour > 18 ? (now.Day + 1) : now.Day, now.Hour >= 18 ? 8 : 9, Random.Shared.Next(0, 10), Random.Shared.Next(0, 60));
+                        DateTime targetTime = new(now.Year, now.Month, now.Hour >= 18 ? (now.Day + 1) : now.Day, now.Hour >= 18 ? 8 : 9, Random.Shared.Next(0, 10), Random.Shared.Next(0, 60));
 
                         delay = targetTime - now;
                     }
