@@ -2,8 +2,12 @@
 using OpenQA.Selenium.Chrome;
 
 using ShareInvest.Entities;
+using ShareInvest.Entities.AnTalk;
 using ShareInvest.Properties;
 using ShareInvest.Securities;
+using ShareInvest.Utilities.TradingView;
+
+using Skender.Stock.Indicators;
 
 using System.Collections.Concurrent;
 using System.Media;
@@ -13,10 +17,11 @@ namespace ShareInvest;
 
 partial class InquiryByStockTheme : Form
 {
-    internal InquiryByStockTheme(Theme theme, Icon[] icons)
+    internal InquiryByStockTheme(Theme theme, Simulation simulation, Icon[] icons)
     {
         this.icons = icons;
         this.theme = theme;
+        this.simulation = simulation;
 
         InitializeComponent();
 
@@ -54,17 +59,8 @@ partial class InquiryByStockTheme : Form
                     return;
 
                 case string:
-
                     TimeSpan delay = TimeSpan.FromMilliseconds(0x400 * 3);
 
-                    if (MarketOperation.장종료_시간외종료 == Cache.MarketOperation)
-                    {
-                        var now = DateTime.Now;
-
-                        DateTime targetTime = new(now.Year, now.Month, now.Day + 1, 8, Random.Shared.Next(55, 60), Random.Shared.Next(0, 60));
-
-                        delay = targetTime - now;
-                    }
                     _ = BeginInvoke(async () =>
                     {
                         while (Transmission != null && themes.TryDequeue(out StockTheme? theme))
@@ -80,6 +76,16 @@ partial class InquiryByStockTheme : Form
                                 notifyIcon.Text = $"[{Cache.MarketOperation}] {themes.Count:D4}.{theme.ThemeName}";
                             }
                         }
+                        if (MarketOperation.장종료_시간외종료 == Cache.MarketOperation)
+                        {
+                            await ReactTheScenarioAsync();
+
+                            var now = DateTime.Now;
+
+                            DateTime targetTime = new(now.Year, now.Month, now.Day + 1, 8, Random.Shared.Next(55, 60), Random.Shared.Next(0, 60));
+
+                            delay = targetTime - now;
+                        }
                         await Task.Delay(delay);
 
                         Dispose();
@@ -87,7 +93,52 @@ partial class InquiryByStockTheme : Form
                     return;
             }
         };
+        simulation.Send += (sender, e) =>
+        {
+
+        };
         timer.Start();
+    }
+    async Task ReactTheScenarioAsync()
+    {
+        if (Transmission == null)
+        {
+            return;
+        }
+        var futures = await Transmission.ExecuteGetAsync<AntFutures>(nameof(AntFutures));
+
+        if (futures == null)
+        {
+            return;
+        }
+        foreach (var kf in futures.OrderBy(ks => Guid.NewGuid()))
+        {
+            var futuresData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
+            {
+                code = kf.Code,
+                first = true,
+                date = kf.DateArr[0]
+            });
+            if (futuresData == null)
+            {
+                continue;
+            }
+            simulation.InitializedScenario(kf.Code, futuresData);
+
+            foreach (var date in kf.DateArr)
+            {
+                var bytes = await Transmission.ExecuteStreamAsync(new
+                {
+                    date,
+                    code = kf.Code
+                });
+                if (bytes == null)
+                {
+                    continue;
+                }
+                simulation.ReactTheScenario(bytes);
+            }
+        }
     }
     void TimerTick(object _, EventArgs e)
     {
@@ -105,44 +156,49 @@ partial class InquiryByStockTheme : Form
 
                     sp.PlaySync();
                 }
-                using (var service = ChromeDriverService.CreateDefaultService())
+                if (Environment.ProcessorCount < 0x10)
                 {
-                    service.HideCommandPromptWindow = true;
-
-                    int page = 1;
-
-                    var options = new ChromeOptions
+                    using (var service = ChromeDriverService.CreateDefaultService())
                     {
+                        service.HideCommandPromptWindow = true;
 
-                    };
-                    options.AddArguments("--headless", "--window-size=1920,1080", Resources.USERAGENT);
+                        int page = 1;
 
-                    using (var driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(0x40)))
-                    {
-                        var queue = new Queue<(string url, string themeCode)>();
-
-                        driver.Navigate().GoToUrl($"https://finance.naver.com/sise/theme.naver");
-
-                        while (Theme.GetNextPage(driver, page++) is IWebElement nextPage)
+                        var options = new ChromeOptions
                         {
+
+                        };
+                        options.AddArguments("--headless", "--window-size=1920,1080", Resources.USERAGENT);
+
+                        using (var driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(0x40)))
+                        {
+                            var queue = new Queue<(string url, string themeCode)>();
+
+                            driver.Navigate().GoToUrl($"https://finance.naver.com/sise/theme.naver");
+
+                            while (Theme.GetNextPage(driver, page++) is IWebElement nextPage)
+                            {
+                                foreach (var tuple in theme.GetThemes(driver))
+                                {
+                                    queue.Enqueue(tuple);
+                                }
+                                nextPage.Click();
+                            }
                             foreach (var tuple in theme.GetThemes(driver))
                             {
                                 queue.Enqueue(tuple);
                             }
-                            nextPage.Click();
+                            while (queue.TryDequeue(out (string url, string themeCode) e))
+                            {
+                                theme.GetStocks(driver, e.themeCode, e.url);
+                            }
+                            driver.Close();
                         }
-                        foreach (var tuple in theme.GetThemes(driver))
-                        {
-                            queue.Enqueue(tuple);
-                        }
-                        while (queue.TryDequeue(out (string url, string themeCode) e))
-                        {
-                            theme.GetStocks(driver, e.themeCode, e.url);
-                        }
-                        driver.Close();
                     }
+                    theme.TerminateTheProcess();
+                    return;
                 }
-                theme.TerminateTheProcess();
+                await ReactTheScenarioAsync();
             });
             FormBorderStyle = FormBorderStyle.None;
             WindowState = FormWindowState.Minimized;
@@ -198,6 +254,7 @@ partial class InquiryByStockTheme : Form
     {
         get => MessageBox.Show(Resources.WARNING.Replace('|', '\n'), Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
     }
+    readonly Simulation simulation;
     readonly Theme theme;
     readonly Icon[] icons;
     readonly CoreWebView webView = new();
