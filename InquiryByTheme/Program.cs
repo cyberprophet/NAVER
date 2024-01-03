@@ -8,7 +8,7 @@ static class Program
     static void Main()
     {
         ApplicationConfiguration.Initialize();
-        Application.Run(new InquiryByStockTheme(new Theme(), [
+        Application.Run(new InquiryByStockTheme(new Theme(), new Simulation(), [
             Resources.GREEN,
             Resources.WHITE,
             Resources.DARK
