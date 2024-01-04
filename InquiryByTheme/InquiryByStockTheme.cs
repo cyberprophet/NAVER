@@ -3,6 +3,7 @@ using OpenQA.Selenium.Chrome;
 
 using ShareInvest.Entities;
 using ShareInvest.Entities.AnTalk;
+using ShareInvest.Observers;
 using ShareInvest.Properties;
 using ShareInvest.Securities;
 using ShareInvest.Utilities.TradingView;
@@ -10,6 +11,7 @@ using ShareInvest.Utilities.TradingView;
 using Skender.Stock.Indicators;
 
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Media;
 using System.Net;
 
@@ -93,9 +95,25 @@ partial class InquiryByStockTheme : Form
                     return;
             }
         };
-        simulation.Send += (sender, e) =>
+        simulation.Send += (_, arg) =>
         {
+            switch (arg)
+            {
+                case ScenarioArgs e when Transmission != null:
+#if DEBUG
+                    Debug.WriteLine(new
+                    {
+                        e.ArrowMarker
+                    });
+#else
+                    _ = BeginInvoke(async () => await Transmission.ExecutePostAsync(e.ArrowMarker));
+#endif
+                    break;
 
+                case ThemeEventArgs t when t.Convey is string msg:
+                    _ = BeginInvoke(Dispose);
+                    break;
+            }
         };
         timer.Start();
     }
@@ -104,6 +122,10 @@ partial class InquiryByStockTheme : Form
         if (Transmission == null)
         {
             return;
+        }
+        while (MarketOperation.장종료_시간외종료 != await Transmission.GetMarketOperationAsync())
+        {
+            await Task.Delay(0x400 * 0x40 * 0x40);
         }
         var futures = await Transmission.ExecuteGetAsync<AntFutures>(nameof(AntFutures));
 
@@ -136,9 +158,39 @@ partial class InquiryByStockTheme : Form
                 {
                     continue;
                 }
-                simulation.ReactTheScenario(bytes);
+                _ = BeginInvoke(() =>
+                {
+                    notifyIcon.Text = $"[{(kf.Code.Length == 0x8 ? kf.Code : kf.Name)}] {date}";
+                });
+                var result = simulation.ReactTheScenario(kf.Code, date, bytes, futuresData);
+#if DEBUG
+                Debug.WriteLine(new
+                {
+                    result.Balance
+                });
+#else
+                _ = await Transmission.ExecutePostAsync(new Entities.TradingView.Scenario
+                {
+                    Code = kf.Code,
+                    Date = result.Balance.Date,
+                    CumulativeRevenue = result.Balance.CumulativeRevenue,
+                    Strategics = result.Balance.Strategics
+                });
+#endif
+                var appendfuturesData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
+                {
+                    code = kf.Code,
+                    date = result.Balance.Date
+                });
+                if (appendfuturesData == null)
+                {
+                    break;
+                }
+                futuresData = futuresData.Union(appendfuturesData).OrderBy(ks => ks.Date).TakeLast(0x400).ToArray();
             }
+            _ = BeginInvoke(() => notifyIcon.Text = kf.Code.Length == 0x8 ? kf.Code : kf.Name);
         }
+        simulation.TerminateTheProcess();
     }
     void TimerTick(object _, EventArgs e)
     {
@@ -234,7 +286,7 @@ partial class InquiryByStockTheme : Form
     {
         if (reference.Name!.Equals(e.ClickedItem?.Name))
         {
-            _ = BeginInvoke(() => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("http://share.enterprises")
+            _ = BeginInvoke(() => Process.Start(new ProcessStartInfo("http://share.enterprises")
             {
                 UseShellExecute = true
             }));
