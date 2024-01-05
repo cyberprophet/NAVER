@@ -1,4 +1,6 @@
-﻿using OpenQA.Selenium;
+﻿using Newtonsoft.Json;
+
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 
 using ShareInvest.Entities;
@@ -61,10 +63,10 @@ partial class InquiryByStockTheme : Form
                     return;
 
                 case string:
-                    TimeSpan delay = TimeSpan.FromMilliseconds(0x400 * 3);
-
                     _ = BeginInvoke(async () =>
                     {
+                        TimeSpan delay = TimeSpan.FromMilliseconds(0x400 * 3);
+
                         while (Transmission != null && themes.TryDequeue(out StockTheme? theme))
                         {
                             theme.ThemeDetail = details.Where(p => theme.ThemeCode!.Equals(p.ThemeCode));
@@ -78,19 +80,16 @@ partial class InquiryByStockTheme : Form
                                 notifyIcon.Text = $"[{Cache.MarketOperation}] {themes.Count:D4}.{theme.ThemeName}";
                             }
                         }
-                        if (MarketOperation.장종료_시간외종료 == Cache.MarketOperation)
+                        if (MarketOperation.장종료_시간외종료 != Cache.MarketOperation)
+                        {
+                            await Task.Delay(delay);
+
+                            Dispose();
+                        }
+                        else
                         {
                             await ReactTheScenarioAsync();
-
-                            var now = DateTime.Now;
-
-                            DateTime targetTime = new(now.Year, now.Month, now.Day + 1, 8, Random.Shared.Next(55, 60), Random.Shared.Next(0, 60));
-
-                            delay = targetTime - now;
                         }
-                        await Task.Delay(delay);
-
-                        Dispose();
                     });
                     return;
             }
@@ -101,10 +100,7 @@ partial class InquiryByStockTheme : Form
             {
                 case ScenarioArgs e when Transmission != null:
 #if DEBUG
-                    Debug.WriteLine(new
-                    {
-                        e.ArrowMarker
-                    });
+                    Debug.WriteLine(JsonConvert.SerializeObject(e.ArrowMarker, Formatting.Indented));
 #else
                     _ = BeginInvoke(async () => await Transmission.ExecutePostAsync(e.ArrowMarker));
 #endif
@@ -164,10 +160,7 @@ partial class InquiryByStockTheme : Form
                 });
                 var result = simulation.ReactTheScenario(kf.Code, date, bytes, futuresData);
 #if DEBUG
-                Debug.WriteLine(new
-                {
-                    result.Balance
-                });
+                Debug.WriteLine(JsonConvert.SerializeObject(result.Balance, Formatting.Indented));
 #else
                 _ = await Transmission.ExecutePostAsync(new Entities.TradingView.Scenario
                 {

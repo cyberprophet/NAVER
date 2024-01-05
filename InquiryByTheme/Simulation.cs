@@ -27,6 +27,8 @@ class Simulation
 
         int label = 0;
 
+        DateTime justBefore = DateTime.UnixEpoch;
+
         ConcurrentStack<Quote> quoteStack = new(futuresData);
 
         var simulation = new Futures(code, date);
@@ -121,7 +123,7 @@ class Simulation
                     var judge = new Strategics
                     {
                         DateTime = time,
-                        JustBefore = JustBefore,
+                        JustBefore = justBefore,
                         AtrStop = i.atrStop.Order ? 1 : -1,
                         SuperTrend = i.superTrend.Order ? 1 : -1,
                         Histogram = indicator.Macd!.Select(e => e.Histogram ?? double.NaN).TakeLast(5),
@@ -140,7 +142,7 @@ class Simulation
                         dateTime = time.ToString(Resources.DATEFORMAT);
                         square = false;
 
-                        JustBefore = time;
+                        justBefore = time;
                     }
                     simulation.Balance.CurrentPrice = Convert.ToDouble(quote.Close);
                     simulation.Balance.DateTime = time;
@@ -202,10 +204,6 @@ class Simulation
         get; set;
     }
     Chart? Chart
-    {
-        get; set;
-    }
-    DateTime JustBefore
     {
         get; set;
     }
