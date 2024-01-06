@@ -5,6 +5,7 @@ using OpenQA.Selenium.Chrome;
 
 using ShareInvest.Entities;
 using ShareInvest.Entities.AnTalk;
+using ShareInvest.Entities.TradingView;
 using ShareInvest.Observers;
 using ShareInvest.Properties;
 using ShareInvest.Securities;
@@ -124,64 +125,79 @@ partial class InquiryByStockTheme : Form
             await Task.Delay(0x400 * 0x40 * 0x40);
         }
         var futures = await Transmission.ExecuteGetAsync<AntFutures>(nameof(AntFutures));
+        var indicators = await Transmission.ExecuteGetAsync<Indicators>(nameof(Scenario));
 
-        if (futures == null)
+        if (futures == null || indicators == null)
         {
             return;
         }
-        foreach (var kf in futures.OrderBy(ks => Guid.NewGuid()))
+        foreach (var indicator in indicators.OrderBy(ks => Guid.NewGuid()))
         {
-            var futuresData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
+            foreach (var kf in futures.OrderBy(ks => Guid.NewGuid()))
             {
-                code = kf.Code,
-                first = true,
-                date = kf.DateArr[0]
-            });
-            if (futuresData == null)
-            {
-                continue;
-            }
-            simulation.InitializedScenario(kf.Code, futuresData);
-
-            foreach (var date in kf.DateArr)
-            {
-                var bytes = await Transmission.ExecuteStreamAsync(new
+                var futuresData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
                 {
-                    date,
-                    code = kf.Code
+                    code = kf.Code,
+                    first = true,
+                    date = kf.DateArr[0]
                 });
-                if (bytes == null)
+                if (futuresData == null)
                 {
                     continue;
                 }
-                _ = BeginInvoke(() =>
+                simulation.InitializedScenario(kf.Code, futuresData);
+
+                foreach (var date in kf.DateArr)
                 {
-                    notifyIcon.Text = $"[{(kf.Code.Length == 0x8 ? kf.Code : kf.Name)}] {date}";
-                });
-                var result = simulation.ReactTheScenario(kf.Code, date, bytes, futuresData);
+                    var bytes = await Transmission.ExecuteStreamAsync(new
+                    {
+                        date,
+                        code = kf.Code
+                    });
+                    if (bytes == null)
+                    {
+                        continue;
+                    }
+                    _ = BeginInvoke(() =>
+                    {
+                        notifyIcon.Text = $"[{(kf.Code.Length == 0x8 ? kf.Code : kf.Name)}] {date}\n{indicator.Strategics}";
+                    });
+                    var result = simulation.ReactTheScenario(date, bytes, futuresData,
+                                                             strategics: indicator.Strategics,
+                                                             histogram: indicator.HistogramTakeCount,
+                                                             slope: indicator.SlopeTakeCount,
+                                                             seedMoney: indicator.SeedMoney);
+                    if (result == null)
+                    {
+                        break;
+                    }
 #if DEBUG
-                Debug.WriteLine(JsonConvert.SerializeObject(result.Balance, Formatting.Indented));
+                    Debug.WriteLine(JsonConvert.SerializeObject(result.Balance, Formatting.Indented));
 #else
-                _ = await Transmission.ExecutePostAsync(new Entities.TradingView.Scenario
-                {
-                    Code = kf.Code,
-                    Date = result.Balance.Date,
-                    CumulativeRevenue = result.Balance.CumulativeRevenue,
-                    Strategics = result.Balance.Strategics
-                });
+                    _ = await Transmission.ExecutePostAsync(new Entities.TradingView.Scenario
+                    {
+                        Code = kf.Code,
+                        Date = result.Balance.Date,
+                        CumulativeRevenue = result.Balance.CumulativeRevenue,
+                        Strategics = result.Balance.Strategics
+                    });
 #endif
-                var appendfuturesData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
-                {
-                    code = kf.Code,
-                    date = result.Balance.Date
-                });
-                if (appendfuturesData == null)
-                {
-                    break;
+                    var appendfuturesData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
+                    {
+                        code = kf.Code,
+                        date = result.Balance.Date
+                    });
+                    if (appendfuturesData == null)
+                    {
+                        break;
+                    }
+                    futuresData = futuresData.Union(appendfuturesData).OrderBy(ks => ks.Date).TakeLast(0x400).ToArray();
                 }
-                futuresData = futuresData.Union(appendfuturesData).OrderBy(ks => ks.Date).TakeLast(0x400).ToArray();
+                _ = BeginInvoke(() => notifyIcon.Text = kf.Code.Length == 0x8 ? kf.Code : kf.Name);
             }
-            _ = BeginInvoke(() => notifyIcon.Text = kf.Code.Length == 0x8 ? kf.Code : kf.Name);
+#if DEBUG
+            Debug.WriteLine(indicator.Strategics);
+#endif
         }
         simulation.TerminateTheProcess();
     }

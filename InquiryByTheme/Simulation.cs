@@ -19,8 +19,16 @@ class Simulation
     {
         Send?.Invoke(this, new ThemeEventArgs(nameof(TerminateTheProcess)));
     }
-    internal Futures ReactTheScenario(string code, string date, byte[] bytes, IEnumerable<Quote> futuresData, string? strategics = null)
+    internal Futures? ReactTheScenario(string date, byte[] bytes, IEnumerable<Quote> futuresData,
+                                       string? strategics = null,
+                                       int slope = 5,
+                                       int histogram = 5,
+                                       long seedMoney = long.MaxValue)
     {
+        if (string.IsNullOrEmpty(Code))
+        {
+            return null;
+        }
         string scenario = Encoding.UTF8.GetString(bytes).Replace("\"", string.Empty), dateTime = string.Empty;
 
         bool position = false, square = false;
@@ -31,7 +39,7 @@ class Simulation
 
         ConcurrentStack<Quote> quoteStack = new(futuresData);
 
-        var simulation = new Futures(code, date);
+        var simulation = new Futures(Code, date, strategics);
 
         foreach (var str in scenario.Split("\\r\\n"))
         {
@@ -90,7 +98,7 @@ class Simulation
                             Send?.Invoke(this, new ScenarioArgs(new Marker
                             {
                                 Strategics = strategics ?? string.Empty,
-                                Code = code,
+                                Code = Code,
                                 Label = label,
                                 DateTime = dateTime,
                                 LongPosition = position,
@@ -118,7 +126,7 @@ class Simulation
                     {
                         continue;
                     }
-                    var i = Chart.UpdateFuturesIndicator(code, indicator);
+                    var i = Chart.UpdateFuturesIndicator(Code, indicator);
 
                     var judge = new Strategics
                     {
@@ -126,10 +134,10 @@ class Simulation
                         JustBefore = justBefore,
                         AtrStop = i.atrStop.Order ? 1 : -1,
                         SuperTrend = i.superTrend.Order ? 1 : -1,
-                        Histogram = indicator.Macd!.Select(e => e.Histogram ?? double.NaN).TakeLast(5),
-                        Slope = indicator.Slope!.Select(e => e.Slope ?? double.NaN).TakeLast(5)
+                        Histogram = indicator.Macd!.Select(e => e.Histogram ?? double.NaN).TakeLast(histogram),
+                        Slope = indicator.Slope!.Select(e => e.Slope ?? double.NaN).TakeLast(slope)
                     };
-                    if (judge.DecideOnPosition)
+                    if (judge.DecideOnPosition(seedMoney))
                     {
                         var tradingPosition = judge.Position > 0;
 
@@ -176,7 +184,7 @@ class Simulation
         Send?.Invoke(this, new ScenarioArgs(new Marker
         {
             Strategics = strategics ?? string.Empty,
-            Code = code,
+            Code = Code,
             Label = label,
             DateTime = dateTime,
             LongPosition = position,
@@ -198,12 +206,18 @@ class Simulation
 
         _ = Chart.InitializedCandlestickData(futuresData);
         _ = Chart.InitializedVolumeData(futuresData);
+
+        Code = code;
     }
     PriorityQuote? Quote
     {
         get; set;
     }
     Chart? Chart
+    {
+        get; set;
+    }
+    string? Code
     {
         get; set;
     }
