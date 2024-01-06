@@ -87,11 +87,8 @@ partial class InquiryByStockTheme : Form
 
                             Dispose();
                         }
-                        else
-                        {
-                            await ReactTheScenarioAsync();
-                        }
                     });
+                    _ = Task.Run(async () => await ReactTheScenarioAsync());
                     return;
             }
         };
@@ -127,12 +124,16 @@ partial class InquiryByStockTheme : Form
         var futures = await Transmission.ExecuteGetAsync<AntFutures>(nameof(AntFutures));
         var indicators = await Transmission.ExecuteGetAsync<Indicators>(nameof(Scenario));
 
+        int index = 0;
+
         if (futures == null || indicators == null)
         {
             return;
         }
         foreach (var indicator in indicators.OrderBy(ks => Guid.NewGuid()))
         {
+            index++;
+
             foreach (var kf in futures.OrderBy(ks => Guid.NewGuid()))
             {
                 var futuresData = await Transmission.ExecuteGetAsync<Quote>(string.Concat(nameof(AntFutures), '/', nameof(MinuteChart)), new
@@ -160,7 +161,7 @@ partial class InquiryByStockTheme : Form
                     }
                     _ = BeginInvoke(() =>
                     {
-                        notifyIcon.Text = $"[{(kf.Code.Length == 0x8 ? kf.Code : kf.Name)}] {date}\n{indicator.Strategics}";
+                        notifyIcon.Text = $"[{(kf.Code.Length == 0x8 ? kf.Code : kf.Name)}] {date}\n{indicator.Strategics} ({index}/{indicators.Count()})";
                     });
                     var result = simulation.ReactTheScenario(date, bytes, futuresData,
                                                              strategics: indicator.Strategics,
