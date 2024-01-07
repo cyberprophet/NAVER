@@ -87,8 +87,8 @@ partial class InquiryByStockTheme : Form
 
                             Dispose();
                         }
+                        _ = Task.Run(async () => await ReactTheScenarioAsync());
                     });
-                    _ = Task.Run(async () => await ReactTheScenarioAsync());
                     return;
             }
         };
